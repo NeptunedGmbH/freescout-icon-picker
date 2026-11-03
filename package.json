@@ -1,0 +1,11 @@
+{
+    "name": "freescout-icon-picker",
+    "private": true,
+    "scripts": {
+        "build": "tsc -p tsconfig.json"
+    },
+    "devDependencies": {
+        "lucide-static": "0.544.0",
+        "typescript": "5.6.3"
+    }
+}

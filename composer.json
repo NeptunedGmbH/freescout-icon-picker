@@ -1,0 +1,23 @@
+{
+    "name": "freescout/icon-picker",
+    "description": "A searchable icon field for Custom Folders.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "NeptunedGmbH"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Modules\\IconPicker\\Providers\\IconPickerServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\IconPicker\\": ""
+        }
+    }
+}

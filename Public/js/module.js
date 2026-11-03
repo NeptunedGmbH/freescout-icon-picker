@@ -1,0 +1,795 @@
+"use strict";
+(function () {
+    var WINDOW = 80;
+    var LUCIDE_COLORS = ['', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#ffffff'];
+    var COLUMNS = 8;
+    var RECENT_KEY = 'iconpicker.recent';
+    var boot = null;
+    var items = [];
+    var ready = false;
+    var pending = null;
+    var catalogsRequested = false;
+    function iconpickerStart(config) {
+        boot = config;
+        if (!boot.icons) {
+            boot.icons = {};
+        }
+        bindSave();
+        mount(document);
+        paintFolders();
+        paintAdmin();
+        watchFolders();
+        document.addEventListener('click', function (event) {
+            installNewFolderHook();
+            installFormHook();
+            var target = event.target;
+            if (!target || !target.closest) {
+                return;
+            }
+            if (!target.closest('.iconpicker')) {
+                closePanels(null);
+            }
+        }, true);
+        installNewFolderHook();
+        installFormHook();
+    }
+    function bindSave() {
+        $.ajaxPrefilter(function (options) {
+            if (!boot || !options.url || options.url.indexOf('custom-folders/ajax') === -1) {
+                return;
+            }
+            var fields = fieldsOf(options.data);
+            if (fields.action !== 'create' && fields.action !== 'update' && fields.action !== 'delete') {
+                return;
+            }
+            var previous = options.success;
+            options.success = function (data) {
+                var finish = function () {
+                    if (previous) {
+                        previous(data);
+                    }
+                };
+                if (!boot || !data || data.status !== 'success') {
+                    finish();
+                    return;
+                }
+                var id = data.id ? Number(data.id) : Number(fields.folder_id || 0);
+                if (!id) {
+                    showFloatingAlert('error', boot.failed, true);
+                    return;
+                }
+                var failed = boot.failed;
+                var url = boot.url;
+                var choice = fields.action === 'delete' ? null : pending;
+                if (fields.action !== 'delete') {
+                    pending = null;
+                }
+                var payload = {
+                    action: fields.action === 'delete' ? 'delete' : 'save',
+                    folder_id: id,
+                    mailbox_id: fields.mailbox_id || String(boot.mailboxId),
+                    kind: choice ? choice.kind : 'glyph',
+                    value: choice ? choice.value : '',
+                    color: choice && choice.color ? choice.color : ''
+                };
+                fsAjax(payload, url, function (response) {
+                    if (response && response.status === 'success') {
+                        rememberBoot(String(id), payload.kind, payload.value, payload.color);
+                        paintFolders();
+                        paintAdmin();
+                        finish();
+                        return;
+                    }
+                    showFloatingAlert('error', (response && response.msg) || failed, true);
+                }, true, function () {
+                    showFloatingAlert('error', failed, true);
+                });
+            };
+        });
+    }
+    function rememberBoot(id, kind, value, color) {
+        if (!boot) {
+            return;
+        }
+        if (kind === 'lucide' || kind === 'emoji') {
+            boot.icons[id] = { kind: kind, value: value, color: color };
+            return;
+        }
+        delete boot.icons[id];
+    }
+    function mount(root) {
+        var selects = root.querySelectorAll('select[name="icon"]');
+        for (var i = 0; i < selects.length; i++) {
+            mountSelect(selects[i]);
+        }
+    }
+    function mountSelect(select) {
+        if (select.getAttribute('data-iconpicker') === '1') {
+            return;
+        }
+        select.setAttribute('data-iconpicker', '1');
+        select.classList.add('iconpicker-select');
+        var form = select.closest('form');
+        var help = select.parentElement ? select.parentElement.querySelector('.form-help') : null;
+        if (help) {
+            help.setAttribute('hidden', 'hidden');
+        }
+        var folderId = form ? form.getAttribute('data-folder_id') || '' : '';
+        var row = boot && folderId ? boot.icons[folderId] : undefined;
+        if (row && !select.value) {
+            setChoice(form, row.kind, row.value, select, row.color || '');
+        }
+        else {
+            setChoice(form, select.value ? 'glyph' : 'clear', select.value, select, '');
+        }
+        var holder = document.createElement('div');
+        holder.className = 'iconpicker';
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-default iconpicker-button';
+        var panel = document.createElement('div');
+        panel.className = 'iconpicker-panel';
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'form-control iconpicker-search';
+        var switcher = document.createElement('div');
+        switcher.className = 'iconpicker-switch';
+        var emojiTab = document.createElement('button');
+        emojiTab.type = 'button';
+        emojiTab.className = 'iconpicker-switch-btn';
+        emojiTab.textContent = 'Emoji';
+        var iconTab = document.createElement('button');
+        iconTab.type = 'button';
+        iconTab.className = 'iconpicker-switch-btn';
+        iconTab.textContent = 'Icons';
+        switcher.appendChild(emojiTab);
+        switcher.appendChild(iconTab);
+        var colors = document.createElement('div');
+        colors.className = 'iconpicker-colors';
+        var bar = document.createElement('div');
+        bar.className = 'iconpicker-bar';
+        var nameEl = document.createElement('span');
+        nameEl.className = 'iconpicker-name';
+        var clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'btn btn-link btn-sm iconpicker-clear';
+        clear.textContent = 'Icon entfernen';
+        bar.appendChild(nameEl);
+        bar.appendChild(clear);
+        var grid = document.createElement('div');
+        grid.className = 'iconpicker-grid';
+        panel.appendChild(search);
+        panel.appendChild(switcher);
+        panel.appendChild(colors);
+        panel.appendChild(bar);
+        panel.appendChild(grid);
+        holder.appendChild(button);
+        holder.appendChild(panel);
+        if (!select.parentNode) {
+            return;
+        }
+        select.parentNode.insertBefore(holder, select.nextSibling);
+        var shown = 0;
+        var matches = [];
+        var active = 0;
+        var mode = 'icon';
+        var iconColor = '';
+        var drawButton = function () {
+            var current = readChoice(form, select);
+            var known = findItem(current.kind, current.value);
+            var title = known ? iconTitle(known) : current.value;
+            button.innerHTML = '';
+            button.title = title;
+            button.setAttribute('aria-label', title || 'Icon');
+            button.appendChild(renderIcon(current.kind, current.value, current.color || ''));
+        };
+        var drawGrid = function (reset) {
+            if (reset) {
+                shown = Math.min(WINDOW, matches.length);
+                active = 0;
+                grid.innerHTML = '';
+            }
+            var from = grid.children.length;
+            for (var i = from; i < shown; i++) {
+                grid.appendChild(cell(matches[i], i));
+            }
+            markActive();
+        };
+        var cell = function (item, index) {
+            var node = document.createElement('button');
+            node.type = 'button';
+            node.className = 'iconpicker-cell';
+            node.setAttribute('data-index', String(index));
+            node.title = iconTitle(item);
+            node.setAttribute('aria-label', iconTitle(item));
+            node.appendChild(renderIcon(item.kind, item.value, mode === 'icon' ? iconColor : ''));
+            node.addEventListener('mouseenter', function () {
+                active = index;
+                markActive();
+            });
+            node.addEventListener('click', function () {
+                applyItem(item);
+            });
+            return node;
+        };
+        var showName = function (item) {
+            nameEl.textContent = item ? iconTitle(item) : '';
+        };
+        var markActive = function () {
+            var cells = grid.children;
+            for (var i = 0; i < cells.length; i++) {
+                if (i === active) {
+                    cells[i].classList.add('is-active');
+                }
+                else {
+                    cells[i].classList.remove('is-active');
+                }
+            }
+            showName(matches[active] || null);
+        };
+        var applyItem = function (item) {
+            if (!item) {
+                setChoice(form, 'clear', '', select, '');
+            }
+            else if (item.kind === 'glyph') {
+                setChoice(form, 'glyph', item.value, select, iconColor);
+                select.value = item.value;
+            }
+            else if (item.kind === 'lucide') {
+                setChoice(form, 'lucide', item.value, select, iconColor);
+                select.value = '';
+            }
+            else {
+                setChoice(form, 'emoji', item.value, select, '');
+                select.value = '';
+            }
+            pushRecent(readChoice(form, select));
+            panel.classList.remove('is-open');
+            drawButton();
+        };
+        var paintSwitch = function () {
+            emojiTab.classList.toggle('is-on', mode === 'emoji');
+            iconTab.classList.toggle('is-on', mode === 'icon');
+            colors.style.display = mode === 'icon' ? '' : 'none';
+        };
+        var paintColors = function () {
+            colors.innerHTML = '';
+            var _loop_1 = function (i) {
+                var value = LUCIDE_COLORS[i];
+                var swatch = document.createElement('button');
+                swatch.type = 'button';
+                swatch.className = 'iconpicker-swatch' + (value === iconColor ? ' is-on' : '') + (value === '' ? ' is-default' : '');
+                swatch.title = value === '' ? 'Standard' : value;
+                if (value) {
+                    swatch.style.background = value;
+                }
+                swatch.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    iconColor = value;
+                    var current = readChoice(form, select);
+                    if (current.kind === 'lucide' || current.kind === 'glyph') {
+                        setChoice(form, current.kind, current.value, select, iconColor);
+                        drawButton();
+                    }
+                    paintColors();
+                    refill();
+                });
+                colors.appendChild(swatch);
+            };
+            for (var i = 0; i < LUCIDE_COLORS.length; i++) {
+                _loop_1(i);
+            }
+        };
+        var useMode = function (next) {
+            mode = next;
+            paintSwitch();
+            refill();
+        };
+        var refill = function () {
+            matches = filterItems(search.value || '', mode);
+            drawGrid(true);
+        };
+        clear.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            applyItem(null);
+        });
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            var open = panel.classList.contains('is-open');
+            closePanels(panel);
+            if (open) {
+                panel.classList.remove('is-open');
+                return;
+            }
+            panel.classList.add('is-open');
+            search.value = '';
+            var current = readChoice(form, select);
+            mode = current.kind === 'emoji' ? 'emoji' : 'icon';
+            iconColor = current.color || '';
+            paintSwitch();
+            paintColors();
+            search.focus();
+            ensureCatalogs(function () {
+                refill();
+            });
+        });
+        emojiTab.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            useMode('emoji');
+        });
+        iconTab.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            useMode('icon');
+        });
+        search.addEventListener('input', refill);
+        search.addEventListener('keydown', function (event) {
+            if (!panel.classList.contains('is-open')) {
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                panel.classList.remove('is-open');
+                return;
+            }
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applyItem(matches[active] || null);
+                return;
+            }
+            if (event.key === 'ArrowRight' || event.key === 'ArrowLeft' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                moveActive(event.key);
+            }
+        });
+        grid.addEventListener('scroll', function () {
+            if (grid.scrollTop + grid.clientHeight < grid.scrollHeight - 24) {
+                return;
+            }
+            if (shown >= matches.length) {
+                return;
+            }
+            shown = Math.min(matches.length, shown + WINDOW);
+            drawGrid(false);
+        });
+        var moveActive = function (key) {
+            if (!matches.length) {
+                return;
+            }
+            if (key === 'ArrowRight') {
+                active = Math.min(matches.length - 1, active + 1);
+            }
+            else if (key === 'ArrowLeft') {
+                active = Math.max(0, active - 1);
+            }
+            else if (key === 'ArrowDown') {
+                active = Math.min(matches.length - 1, active + COLUMNS);
+            }
+            else if (key === 'ArrowUp') {
+                active = Math.max(0, active - COLUMNS);
+            }
+            if (active >= shown) {
+                shown = Math.min(matches.length, active + 1);
+                drawGrid(false);
+            }
+            markActive();
+        };
+        drawButton();
+    }
+    function setChoice(form, kind, value, select, color) {
+        if (!form) {
+            return;
+        }
+        form.setAttribute('data-iconpicker-kind', kind);
+        form.setAttribute('data-iconpicker-value', value);
+        form.setAttribute('data-iconpicker-color', color || '');
+        if (kind === 'glyph' && value) {
+            select.value = value;
+        }
+        if (kind === 'lucide' || kind === 'emoji' || kind === 'clear') {
+            select.value = '';
+        }
+    }
+    function readChoice(form, select) {
+        var kind = form ? form.getAttribute('data-iconpicker-kind') || '' : '';
+        var value = form ? form.getAttribute('data-iconpicker-value') || '' : '';
+        var color = form ? form.getAttribute('data-iconpicker-color') || '' : '';
+        if (kind === 'lucide' || kind === 'emoji') {
+            return { kind: kind, value: value, color: kind === 'lucide' ? color : '' };
+        }
+        if (select.value) {
+            return { kind: 'glyph', value: select.value, color: color };
+        }
+        return { kind: 'clear', value: '', color: '' };
+    }
+    function closePanels(except) {
+        var panels = document.querySelectorAll('.iconpicker-panel.is-open');
+        for (var i = 0; i < panels.length; i++) {
+            if (panels[i] !== except) {
+                panels[i].classList.remove('is-open');
+            }
+        }
+    }
+    function installFormHook() {
+        var current = window.initCustomFoldersForm;
+        if (!current || current.__iconpicker) {
+            return;
+        }
+        var wrapped = function (selector, action) {
+            current(selector, action);
+            var nodes = document.querySelectorAll(selector);
+            for (var i = 0; i < nodes.length; i++) {
+                mount(nodes[i]);
+            }
+        };
+        wrapped.__iconpicker = true;
+        window.initCustomFoldersForm = wrapped;
+    }
+    function installNewFolderHook() {
+        var current = window.initNewFolder;
+        if (!current || current.__iconpicker) {
+            return;
+        }
+        var wrapped = function (modal) {
+            current(modal);
+            var root = modal && modal[0] ? modal[0] : document;
+            mount(root || document);
+        };
+        wrapped.__iconpicker = true;
+        window.initNewFolder = wrapped;
+    }
+    function paintFolders() {
+        var root = document.getElementById('folders');
+        if (!root || !boot) {
+            return;
+        }
+        var rows = root.querySelectorAll('li[data-folder_id]');
+        for (var i = 0; i < rows.length; i++) {
+            paintFolder(rows[i]);
+        }
+    }
+    function paintFolder(row) {
+        if (!boot) {
+            return;
+        }
+        var id = row.getAttribute('data-folder_id') || '';
+        var icon = row.querySelector('i.glyphicon');
+        if (!icon) {
+            return;
+        }
+        var choice = boot.icons[id];
+        if (icon.className.indexOf('glyphicon-star') !== -1 || glyphSuffix(icon) !== '') {
+            if (choice && choice.color && icon instanceof HTMLElement) {
+                icon.style.color = choice.color;
+            }
+            return;
+        }
+        if (!choice) {
+            return;
+        }
+        icon.className = 'iconpicker-mark';
+        icon.innerHTML = '';
+        icon.appendChild(renderIcon(choice.kind, choice.value, choice.color || ''));
+    }
+    function glyphSuffix(icon) {
+        var parts = icon.className.split(/\s+/);
+        for (var i = 0; i < parts.length; i++) {
+            var name_1 = parts[i];
+            if (name_1.indexOf('glyphicon-') === 0 && name_1.length > 'glyphicon-'.length) {
+                return name_1.substring('glyphicon-'.length);
+            }
+        }
+        return '';
+    }
+    function watchFolders() {
+        var root = document.querySelector('#folders');
+        if (!root || typeof MutationObserver === 'undefined') {
+            return;
+        }
+        var observer = new MutationObserver(function () {
+            paintFolders();
+        });
+        observer.observe(root, { childList: true });
+    }
+    function paintAdmin() {
+        if (!boot) {
+            return;
+        }
+        var forms = document.querySelectorAll('form.custom-folders-form');
+        for (var i = 0; i < forms.length; i++) {
+            var form = forms[i];
+            var id = form.getAttribute('data-folder_id') || '';
+            var panel = document.getElementById('folder-' + id);
+            var title = panel ? panel.querySelector('.panel-title a') : null;
+            if (!title) {
+                continue;
+            }
+            var mark = title.querySelector('.iconpicker-admin');
+            if (!mark) {
+                mark = document.createElement('span');
+                mark.className = 'iconpicker-admin';
+                title.insertBefore(mark, title.firstChild);
+            }
+            var select = form.querySelector('select[name="icon"]');
+            var choice = readChoice(form, select || document.createElement('select'));
+            mark.innerHTML = '';
+            if (choice.kind === 'clear') {
+                continue;
+            }
+            mark.appendChild(renderIcon(choice.kind, choice.value, choice.color || ''));
+        }
+    }
+    function renderIcon(kind, value, color) {
+        if (kind === 'emoji' && value) {
+            var text = document.createElement('span');
+            text.textContent = value;
+            return text;
+        }
+        if (kind === 'lucide' && value) {
+            var body = lucideBody(value);
+            if (body) {
+                var wrap = document.createElement('div');
+                wrap.innerHTML = '<svg viewBox="0 0 24 24" class="iconpicker-svg" aria-hidden="true">' + body + '</svg>';
+                if (wrap.firstChild) {
+                    if (color) {
+                        wrap.firstChild.style.color = color;
+                    }
+                    return wrap.firstChild;
+                }
+            }
+        }
+        if (kind === 'glyph' && value) {
+            var glyph = document.createElement('i');
+            glyph.className = 'glyphicon glyphicon-' + value;
+            if (color) {
+                glyph.style.color = color;
+            }
+            return glyph;
+        }
+        var empty = document.createElement('span');
+        empty.textContent = '–';
+        return empty;
+    }
+    function lucideBody(name) {
+        var found = items.filter(function (item) {
+            return item.kind === 'lucide' && item.value === name;
+        })[0];
+        return found && found.body ? found.body : '';
+    }
+    function filterItems(query, mode) {
+        var needle = query.replace(/^\s+|\s+$/g, '').toLowerCase();
+        var recent = needle ? [] : recentItems().filter(function (item) {
+            return mode === 'emoji' ? item.kind === 'emoji' : item.kind !== 'emoji';
+        });
+        var pool = items.filter(function (item) {
+            if (mode === 'emoji' && item.kind !== 'emoji') {
+                return false;
+            }
+            if (mode === 'icon' && item.kind === 'emoji') {
+                return false;
+            }
+            if (!needle) {
+                return true;
+            }
+            if (item.label.toLowerCase().indexOf(needle) !== -1 || item.value.toLowerCase().indexOf(needle) !== -1) {
+                return true;
+            }
+            for (var i = 0; i < item.aliases.length; i++) {
+                if (item.aliases[i].toLowerCase().indexOf(needle) !== -1) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        if (mode === 'icon') {
+            var lucide = [];
+            var glyphs = [];
+            for (var i = 0; i < pool.length; i++) {
+                if (pool[i].kind === 'lucide') {
+                    lucide.push(pool[i]);
+                }
+                else {
+                    glyphs.push(pool[i]);
+                }
+            }
+            pool.length = 0;
+            for (var j = 0; j < lucide.length; j++) {
+                pool.push(lucide[j]);
+            }
+            for (var k = 0; k < glyphs.length; k++) {
+                pool.push(glyphs[k]);
+            }
+        }
+        var seen = {};
+        var out = [];
+        var push = function (item) {
+            var key = item.kind + ':' + item.value;
+            if (seen[key]) {
+                return;
+            }
+            seen[key] = true;
+            out.push(item);
+        };
+        for (var i = 0; i < recent.length; i++) {
+            push(recent[i]);
+        }
+        for (var j = 0; j < pool.length; j++) {
+            push(pool[j]);
+        }
+        return out;
+    }
+    function recentItems() {
+        var stored = readRecent();
+        var out = [];
+        for (var i = 0; i < stored.length; i++) {
+            var found = findItem(stored[i].kind, stored[i].value);
+            if (found) {
+                out.push(found);
+            }
+        }
+        return out;
+    }
+    function iconTitle(item) {
+        var extras = [];
+        for (var i = 0; i < item.aliases.length; i++) {
+            var alias = item.aliases[i];
+            if (alias && alias !== item.value && alias !== item.label) {
+                extras.push(alias);
+            }
+        }
+        if (!extras.length) {
+            return item.label;
+        }
+        return item.label + ' (' + extras.join(', ') + ')';
+    }
+    function findItem(kind, value) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].kind === kind && items[i].value === value) {
+                return items[i];
+            }
+        }
+        return null;
+    }
+    function pushRecent(choice) {
+        if (!choice.value) {
+            return;
+        }
+        var stored = readRecent().filter(function (row) {
+            return !(row.kind === choice.kind && row.value === choice.value);
+        });
+        stored.unshift(choice);
+        try {
+            localStorage.setItem(RECENT_KEY, JSON.stringify(stored.slice(0, 12)));
+        }
+        catch (error) {
+            return;
+        }
+    }
+    function readRecent() {
+        try {
+            var parsed = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+            if (!parsed || !parsed.length) {
+                return [];
+            }
+            var out = [];
+            for (var i = 0; i < parsed.length; i++) {
+                if (parsed[i] && parsed[i].kind && parsed[i].value) {
+                    out.push({ kind: String(parsed[i].kind), value: String(parsed[i].value) });
+                }
+            }
+            return out;
+        }
+        catch (error) {
+            return [];
+        }
+    }
+    function ensureCatalogs(done) {
+        if (ready) {
+            done();
+            return;
+        }
+        if (catalogsRequested || !boot) {
+            return;
+        }
+        catalogsRequested = true;
+        var base = boot.base;
+        loadJson(base + '/icons/glyphs.json', function (glyphs) {
+            loadJson(base + '/icons/aliases.json', function (aliases) {
+                loadJson(base + '/icons/lucide.json', function (lucide) {
+                    loadJson(base + '/icons/emoji.json', function (emoji) {
+                        items = buildItems(glyphs, aliases, lucide, emoji);
+                        ready = true;
+                        done();
+                    });
+                });
+            });
+        });
+    }
+    function buildItems(glyphs, aliases, lucide, emoji) {
+        var out = [];
+        var aliasOf = {};
+        for (var key in aliases) {
+            if (Object.prototype.hasOwnProperty.call(aliases, key)) {
+                var target = aliases[key];
+                if (!aliasOf[target]) {
+                    aliasOf[target] = [];
+                }
+                aliasOf[target].push(key);
+            }
+        }
+        for (var i = 0; i < glyphs.length; i++) {
+            var name_2 = glyphs[i];
+            out.push({ kind: 'glyph', value: name_2, label: name_2, aliases: aliasOf[name_2] || [] });
+        }
+        for (var name_3 in lucide) {
+            if (Object.prototype.hasOwnProperty.call(lucide, name_3)) {
+                var item = { kind: 'lucide', value: name_3, label: name_3, aliases: [] };
+                item.body = lucide[name_3];
+                out.push(item);
+            }
+        }
+        for (var j = 0; j < emoji.length; j++) {
+            var row = emoji[j];
+            out.push({ kind: 'emoji', value: row.char, label: row.en, aliases: [row.de, row.char] });
+        }
+        return out;
+    }
+    function loadJson(url, done) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    done(JSON.parse(xhr.responseText));
+                }
+                catch (error) {
+                    catalogsRequested = false;
+                }
+                return;
+            }
+            catalogsRequested = false;
+        };
+        xhr.onerror = function () {
+            catalogsRequested = false;
+        };
+        xhr.send();
+    }
+    function fieldsOf(data) {
+        var out = {};
+        if (typeof data === 'string') {
+            var params = new URLSearchParams(data);
+            params.forEach(function (value, key) {
+                out[key] = value;
+            });
+            return out;
+        }
+        if (data && typeof data === 'object') {
+            var record = data;
+            for (var key in record) {
+                if (Object.prototype.hasOwnProperty.call(record, key)) {
+                    var value = record[key];
+                    if (typeof value === 'string' || typeof value === 'number') {
+                        out[key] = String(value);
+                    }
+                }
+            }
+        }
+        return out;
+    }
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!form || !form.querySelector) {
+            return;
+        }
+        var select = form.querySelector('select[name="icon"]');
+        if (!select) {
+            return;
+        }
+        pending = readChoice(form, select);
+    }, true);
+    window.iconpickerStart = iconpickerStart;
+})();

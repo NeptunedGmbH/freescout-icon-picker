@@ -1,0 +1,34 @@
+{
+    "name": "IconPicker",
+    "alias": "iconpicker",
+    "description": "Add-on for Custom Folders: searchable Glyphicon, Lucide, and emoji field.",
+    "version": "0.1",
+    "requiredModules": {
+        "customfolders": "1.0.0"
+    },
+    "detailsUrl": "https://github.com/NeptunedGmbH/freescout-icon-picker",
+    "author": "NeptunedGmbH",
+    "authorUrl": "https://github.com/NeptunedGmbH",
+    "img": "",
+    "requiredAppVersion": "1.8.246",
+    "requiredPhpVersion": "8.1",
+    "latestVersionUrl": "https://raw.githubusercontent.com/NeptunedGmbH/freescout-icon-picker/refs/heads/main/version.txt",
+    "latestVersionZipUrl": "https://github.com/NeptunedGmbH/freescout-icon-picker/releases/latest/download/IconPicker.zip",
+    "sha256sumsUrl": "https://github.com/NeptunedGmbH/freescout-icon-picker/releases/latest/download/SHA256SUMS",
+    "healthCommand": "iconpicker:health",
+    "updateGuard": {
+        "migrations": "backward-compatible"
+    },
+    "license": "MIT",
+    "keywords": ["icons", "folders", "lucide"],
+    "active": 0,
+    "order": 0,
+    "providers": [
+        "Modules\\IconPicker\\Providers\\IconPickerServiceProvider"
+    ],
+    "aliases": {},
+    "files": [
+        "start.php"
+    ],
+    "requires": []
+}

@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "ES5",
+        "module": "none",
+        "lib": ["DOM", "ES5", "ES2015.Core"],
+        "strict": true,
+        "noEmitOnError": true,
+        "removeComments": true,
+        "sourceMap": false,
+        "outFile": "Public/js/module.js",
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true
+    },
+    "files": [
+        "src/freescout.d.ts",
+        "src/module.ts"
+    ]
+}

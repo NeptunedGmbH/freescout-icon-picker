@@ -1,0 +1,20 @@
+{
+    "project": {
+        "id": "icon-picker",
+        "name": "IconPicker",
+        "repository": "https://github.com/NeptunedGmbH/freescout-icon-picker",
+        "interop_protocol": "1.0.0"
+    },
+    "compatibility": {
+        "freescout": ">=1.8.246",
+        "php": ">=8.1",
+        "projects": {
+            "custom-folders": {
+                "relationship": "required_dependency",
+                "required": true,
+                "name": "CustomFolders",
+                "module": "CustomFolders"
+            }
+        }
+    }
+}
