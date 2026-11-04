@@ -2,7 +2,7 @@
     "name": "IconPicker",
     "alias": "iconpicker",
     "description": "Add-on for Custom Folders: searchable Glyphicon, Lucide, and emoji field.",
-    "version": "0.2",
+    "version": "0.3",
     "requiredModules": {
         "customfolders": "1.0.0"
     },

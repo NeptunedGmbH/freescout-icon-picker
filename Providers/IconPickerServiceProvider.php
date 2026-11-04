@@ -58,7 +58,7 @@ class IconPickerServiceProvider extends ServiceProvider
                 try {
                     $loaded = FolderIcons::map($mailboxId);
                     if ($loaded) {
-                        $icons = $loaded;
+                        $icons = (object) $loaded;
                     }
                 } catch (\Throwable $e) {
                     $icons = new \stdClass();

@@ -1,7 +1,22 @@
 "use strict";
 (function () {
-    var WINDOW = 80;
     var LUCIDE_COLORS = ['', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#ffffff'];
+    var THEMES = [
+        { id: 'arrows', label: 'Pfeile', words: ['arrow', 'chevron', 'caret', 'triangle'] },
+        { id: 'mail', label: 'Kommunikation', words: ['mail', 'envelope', 'inbox', 'send', 'message', 'chat', 'comment', 'phone', 'bell', 'megaphone', 'bullhorn', 'at-sign', 'rss', 'earphone'] },
+        { id: 'people', label: 'Personen', words: ['user', 'users', 'person', 'contact', 'baby', 'hand', 'thumbs', 'smile', 'frown', 'meh'] },
+        { id: 'files', label: 'Dateien', words: ['file', 'files', 'folder', 'document', 'clipboard', 'paperclip', 'archive', 'book', 'bookmark', 'notebook', 'newspaper', 'scroll'] },
+        { id: 'edit', label: 'Bearbeiten', words: ['pencil', 'pen', 'edit', 'scissors', 'copy', 'trash', 'eraser', 'bold', 'italic', 'font', 'align', 'list', 'indent', 'quote', 'type', 'heading', 'pilcrow', 'baseline'] },
+        { id: 'security', label: 'Sicherheit', words: ['lock', 'key', 'shield', 'eye', 'fingerprint', 'scan', 'badge', 'schloss'] },
+        { id: 'status', label: 'Status', words: ['check', 'alert', 'info', 'help', 'ban', 'bug', 'circle-x', 'x-circle', 'warning', 'octagon', 'siren', 'flag'] },
+        { id: 'time', label: 'Zeit', words: ['calendar', 'clock', 'timer', 'hourglass', 'history', 'alarm', 'watch'] },
+        { id: 'place', label: 'Ort und Reise', words: ['map', 'home', 'house', 'building', 'globe', 'navigation', 'compass', 'plane', 'car', 'train', 'ship', 'truck', 'bike', 'bed', 'hotel', 'luggage', 'anchor'] },
+        { id: 'shop', label: 'Handel', words: ['cart', 'credit', 'bank', 'wallet', 'coin', 'dollar', 'euro', 'shopping', 'gift', 'tag', 'tags', 'barcode', 'qr', 'receipt', 'store', 'pound', 'yen', 'bitcoin'] },
+        { id: 'media', label: 'Medien', words: ['image', 'camera', 'video', 'film', 'music', 'mic', 'volume', 'play', 'pause', 'headphone', 'tv', 'clapper', 'podcast', 'radio', 'speaker'] },
+        { id: 'devices', label: 'Geräte', words: ['monitor', 'laptop', 'smartphone', 'tablet', 'printer', 'cpu', 'server', 'hard-drive', 'wifi', 'battery', 'plug', 'keyboard', 'mouse', 'hdmi', 'usb', 'router', 'pc'] },
+        { id: 'nature', label: 'Natur', words: ['sun', 'moon', 'cloud', 'tree', 'leaf', 'flower', 'droplet', 'flame', 'zap', 'snow', 'wind', 'mountain', 'umbrella'] },
+        { id: 'other', label: 'Sonstiges', words: [] }
+    ];
     var COLUMNS = 8;
     var RECENT_KEY = 'iconpicker.recent';
     var boot = null;
@@ -32,6 +47,10 @@
         }, true);
         installNewFolderHook();
         installFormHook();
+        ensureCatalogs(function () {
+            paintFolders();
+            paintAdmin();
+        });
     }
     function bindSave() {
         $.ajaxPrefilter(function (options) {
@@ -91,7 +110,7 @@
         if (!boot) {
             return;
         }
-        if (kind === 'lucide' || kind === 'emoji') {
+        if (kind === 'lucide' || kind === 'emoji' || (kind === 'glyph' && color)) {
             boot.icons[id] = { kind: kind, value: value, color: color };
             return;
         }
@@ -116,11 +135,18 @@
         }
         var folderId = form ? form.getAttribute('data-folder_id') || '' : '';
         var row = boot && folderId ? boot.icons[folderId] : undefined;
-        if (row && !select.value) {
+        if (row && (row.kind === 'lucide' || row.kind === 'emoji') && !select.value) {
+            setChoice(form, row.kind, row.value, select, row.color || '');
+        }
+        else if (select.value) {
+            var color = row && row.kind === 'glyph' ? (row.color || '') : '';
+            setChoice(form, 'glyph', select.value, select, color);
+        }
+        else if (row) {
             setChoice(form, row.kind, row.value, select, row.color || '');
         }
         else {
-            setChoice(form, select.value ? 'glyph' : 'clear', select.value, select, '');
+            setChoice(form, 'clear', '', select, '');
         }
         var holder = document.createElement('div');
         holder.className = 'iconpicker';
@@ -169,7 +195,6 @@
             return;
         }
         select.parentNode.insertBefore(holder, select.nextSibling);
-        var shown = 0;
         var matches = [];
         var active = 0;
         var mode = 'icon';
@@ -183,17 +208,25 @@
             button.setAttribute('aria-label', title || 'Icon');
             button.appendChild(renderIcon(current.kind, current.value, current.color || ''));
         };
-        var drawGrid = function (reset) {
-            if (reset) {
-                shown = Math.min(WINDOW, matches.length);
-                active = 0;
-                grid.innerHTML = '';
-            }
-            var from = grid.children.length;
-            for (var i = from; i < shown; i++) {
+        var drawGrid = function () {
+            active = 0;
+            grid.innerHTML = '';
+            grid.scrollTop = 0;
+            var lastTheme = '';
+            for (var i = 0; i < matches.length; i++) {
+                if (mode === 'icon') {
+                    var theme = themeOf(matches[i]);
+                    if (theme !== lastTheme) {
+                        var head = document.createElement('div');
+                        head.className = 'iconpicker-theme';
+                        head.textContent = themeLabel(theme);
+                        grid.appendChild(head);
+                        lastTheme = theme;
+                    }
+                }
                 grid.appendChild(cell(matches[i], i));
             }
-            markActive();
+            markActive(false);
         };
         var cell = function (item, index) {
             var node = document.createElement('button');
@@ -205,7 +238,7 @@
             node.appendChild(renderIcon(item.kind, item.value, mode === 'icon' ? iconColor : ''));
             node.addEventListener('mouseenter', function () {
                 active = index;
-                markActive();
+                markActive(false);
             });
             node.addEventListener('click', function () {
                 applyItem(item);
@@ -215,17 +248,24 @@
         var showName = function (item) {
             nameEl.textContent = item ? iconTitle(item) : '';
         };
-        var markActive = function () {
-            var cells = grid.children;
+        var markActive = function (scroll) {
+            var cells = grid.querySelectorAll('.iconpicker-cell');
+            var current = null;
             for (var i = 0; i < cells.length; i++) {
-                if (i === active) {
-                    cells[i].classList.add('is-active');
+                var node = cells[i];
+                var index = Number(node.getAttribute('data-index'));
+                if (index === active) {
+                    node.classList.add('is-active');
+                    current = node;
                 }
                 else {
-                    cells[i].classList.remove('is-active');
+                    node.classList.remove('is-active');
                 }
             }
             showName(matches[active] || null);
+            if (scroll && current) {
+                current.scrollIntoView({ block: 'nearest' });
+            }
         };
         var applyItem = function (item) {
             if (!item) {
@@ -287,8 +327,9 @@
             refill();
         };
         var refill = function () {
-            matches = filterItems(search.value || '', mode);
-            drawGrid(true);
+            var found = filterItems(search.value || '', mode);
+            matches = mode === 'icon' ? sortByTheme(found) : found;
+            drawGrid();
         };
         clear.addEventListener('click', function (event) {
             event.preventDefault();
@@ -346,15 +387,13 @@
                 moveActive(event.key);
             }
         });
-        grid.addEventListener('scroll', function () {
-            if (grid.scrollTop + grid.clientHeight < grid.scrollHeight - 24) {
+        grid.addEventListener('wheel', function (event) {
+            if (grid.scrollHeight <= grid.clientHeight) {
                 return;
             }
-            if (shown >= matches.length) {
-                return;
-            }
-            shown = Math.min(matches.length, shown + WINDOW);
-            drawGrid(false);
+            grid.scrollTop += event.deltaY;
+            event.preventDefault();
+            event.stopPropagation();
         });
         var moveActive = function (key) {
             if (!matches.length) {
@@ -372,11 +411,7 @@
             else if (key === 'ArrowUp') {
                 active = Math.max(0, active - COLUMNS);
             }
-            if (active >= shown) {
-                shown = Math.min(matches.length, active + 1);
-                drawGrid(false);
-            }
-            markActive();
+            markActive(true);
         };
         drawButton();
     }
@@ -457,7 +492,7 @@
             return;
         }
         var id = row.getAttribute('data-folder_id') || '';
-        var icon = row.querySelector('i.glyphicon');
+        var icon = row.querySelector('i.glyphicon, i.iconpicker-mark');
         if (!icon) {
             return;
         }
@@ -560,6 +595,55 @@
         })[0];
         return found && found.body ? found.body : '';
     }
+    function themeOf(item) {
+        var raw = (item.value + ' ' + item.label + ' ' + item.aliases.join(' ')).toLowerCase();
+        var tokens = raw.split(/[^a-z0-9äöüß]+/);
+        var blob = ' ' + tokens.join(' ') + ' ';
+        for (var i = 0; i < THEMES.length; i++) {
+            var words = THEMES[i].words;
+            for (var j = 0; j < words.length; j++) {
+                var word = words[j];
+                if (word.indexOf('-') !== -1) {
+                    if (raw.indexOf(word) !== -1) {
+                        return THEMES[i].id;
+                    }
+                }
+                else if (blob.indexOf(' ' + word + ' ') !== -1) {
+                    return THEMES[i].id;
+                }
+            }
+        }
+        return 'other';
+    }
+    function themeLabel(id) {
+        for (var i = 0; i < THEMES.length; i++) {
+            if (THEMES[i].id === id) {
+                return THEMES[i].label;
+            }
+        }
+        return 'Sonstiges';
+    }
+    function sortByTheme(list) {
+        var order = { other: THEMES.length };
+        for (var i = 0; i < THEMES.length; i++) {
+            order[THEMES[i].id] = i;
+        }
+        var copy = list.slice();
+        copy.sort(function (a, b) {
+            var diff = (order[themeOf(a)] || 0) - (order[themeOf(b)] || 0);
+            if (diff !== 0) {
+                return diff;
+            }
+            if (a.label < b.label) {
+                return -1;
+            }
+            if (a.label > b.label) {
+                return 1;
+            }
+            return a.kind < b.kind ? -1 : 1;
+        });
+        return copy;
+    }
     function filterItems(query, mode) {
         var needle = query.replace(/^\s+|\s+$/g, '').toLowerCase();
         var recent = needle ? [] : recentItems().filter(function (item) {
@@ -597,11 +681,11 @@
                 }
             }
             pool.length = 0;
-            for (var j = 0; j < lucide.length; j++) {
-                pool.push(lucide[j]);
-            }
             for (var k = 0; k < glyphs.length; k++) {
                 pool.push(glyphs[k]);
+            }
+            for (var j = 0; j < lucide.length; j++) {
+                pool.push(lucide[j]);
             }
         }
         var seen = {};

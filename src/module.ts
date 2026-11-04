@@ -26,8 +26,23 @@ interface PendingChoice {
 }
 
 (function () {
-const WINDOW = 80;
 const LUCIDE_COLORS = ['', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#ffffff'];
+const THEMES: { id: string; label: string; words: string[] }[] = [
+    { id: 'arrows', label: 'Pfeile', words: ['arrow', 'chevron', 'caret', 'triangle'] },
+    { id: 'mail', label: 'Kommunikation', words: ['mail', 'envelope', 'inbox', 'send', 'message', 'chat', 'comment', 'phone', 'bell', 'megaphone', 'bullhorn', 'at-sign', 'rss', 'earphone'] },
+    { id: 'people', label: 'Personen', words: ['user', 'users', 'person', 'contact', 'baby', 'hand', 'thumbs', 'smile', 'frown', 'meh'] },
+    { id: 'files', label: 'Dateien', words: ['file', 'files', 'folder', 'document', 'clipboard', 'paperclip', 'archive', 'book', 'bookmark', 'notebook', 'newspaper', 'scroll'] },
+    { id: 'edit', label: 'Bearbeiten', words: ['pencil', 'pen', 'edit', 'scissors', 'copy', 'trash', 'eraser', 'bold', 'italic', 'font', 'align', 'list', 'indent', 'quote', 'type', 'heading', 'pilcrow', 'baseline'] },
+    { id: 'security', label: 'Sicherheit', words: ['lock', 'key', 'shield', 'eye', 'fingerprint', 'scan', 'badge', 'schloss'] },
+    { id: 'status', label: 'Status', words: ['check', 'alert', 'info', 'help', 'ban', 'bug', 'circle-x', 'x-circle', 'warning', 'octagon', 'siren', 'flag'] },
+    { id: 'time', label: 'Zeit', words: ['calendar', 'clock', 'timer', 'hourglass', 'history', 'alarm', 'watch'] },
+    { id: 'place', label: 'Ort und Reise', words: ['map', 'home', 'house', 'building', 'globe', 'navigation', 'compass', 'plane', 'car', 'train', 'ship', 'truck', 'bike', 'bed', 'hotel', 'luggage', 'anchor'] },
+    { id: 'shop', label: 'Handel', words: ['cart', 'credit', 'bank', 'wallet', 'coin', 'dollar', 'euro', 'shopping', 'gift', 'tag', 'tags', 'barcode', 'qr', 'receipt', 'store', 'pound', 'yen', 'bitcoin'] },
+    { id: 'media', label: 'Medien', words: ['image', 'camera', 'video', 'film', 'music', 'mic', 'volume', 'play', 'pause', 'headphone', 'tv', 'clapper', 'podcast', 'radio', 'speaker'] },
+    { id: 'devices', label: 'Geräte', words: ['monitor', 'laptop', 'smartphone', 'tablet', 'printer', 'cpu', 'server', 'hard-drive', 'wifi', 'battery', 'plug', 'keyboard', 'mouse', 'hdmi', 'usb', 'router', 'pc'] },
+    { id: 'nature', label: 'Natur', words: ['sun', 'moon', 'cloud', 'tree', 'leaf', 'flower', 'droplet', 'flame', 'zap', 'snow', 'wind', 'mountain', 'umbrella'] },
+    { id: 'other', label: 'Sonstiges', words: [] }
+];
 const COLUMNS = 8;
 const RECENT_KEY = 'iconpicker.recent';
 
@@ -60,6 +75,10 @@ function iconpickerStart(config: IconBoot): void {
     }, true);
     installNewFolderHook();
     installFormHook();
+    ensureCatalogs(function () {
+        paintFolders();
+        paintAdmin();
+    });
 }
 
 function bindSave(): void {
@@ -121,7 +140,7 @@ function rememberBoot(id: string, kind: string, value: string, color: string): v
     if (!boot) {
         return;
     }
-    if (kind === 'lucide' || kind === 'emoji') {
+    if (kind === 'lucide' || kind === 'emoji' || (kind === 'glyph' && color)) {
         boot.icons[id] = { kind: kind, value: value, color: color };
         return;
     }
@@ -148,10 +167,15 @@ function mountSelect(select: HTMLSelectElement): void {
     }
     const folderId = form ? form.getAttribute('data-folder_id') || '' : '';
     const row = boot && folderId ? boot.icons[folderId] : undefined;
-    if (row && !select.value) {
+    if (row && (row.kind === 'lucide' || row.kind === 'emoji') && !select.value) {
+        setChoice(form, row.kind, row.value, select, row.color || '');
+    } else if (select.value) {
+        const color = row && row.kind === 'glyph' ? (row.color || '') : '';
+        setChoice(form, 'glyph', select.value, select, color);
+    } else if (row) {
         setChoice(form, row.kind, row.value, select, row.color || '');
     } else {
-        setChoice(form, select.value ? 'glyph' : 'clear', select.value, select, '');
+        setChoice(form, 'clear', '', select, '');
     }
 
     const holder = document.createElement('div');
@@ -202,7 +226,6 @@ function mountSelect(select: HTMLSelectElement): void {
     }
     select.parentNode.insertBefore(holder, select.nextSibling);
 
-    let shown = 0;
     let matches: IconItem[] = [];
     let active = 0;
     let mode: 'icon' | 'emoji' = 'icon';
@@ -218,17 +241,25 @@ function mountSelect(select: HTMLSelectElement): void {
         button.appendChild(renderIcon(current.kind, current.value, current.color || ''));
     };
 
-    const drawGrid = function (reset: boolean) {
-        if (reset) {
-            shown = Math.min(WINDOW, matches.length);
-            active = 0;
-            grid.innerHTML = '';
-        }
-        const from = grid.children.length;
-        for (let i = from; i < shown; i++) {
+    const drawGrid = function () {
+        active = 0;
+        grid.innerHTML = '';
+        grid.scrollTop = 0;
+        let lastTheme = '';
+        for (let i = 0; i < matches.length; i++) {
+            if (mode === 'icon') {
+                const theme = themeOf(matches[i]);
+                if (theme !== lastTheme) {
+                    const head = document.createElement('div');
+                    head.className = 'iconpicker-theme';
+                    head.textContent = themeLabel(theme);
+                    grid.appendChild(head);
+                    lastTheme = theme;
+                }
+            }
             grid.appendChild(cell(matches[i], i));
         }
-        markActive();
+        markActive(false);
     };
 
     const cell = function (item: IconItem, index: number) {
@@ -241,7 +272,7 @@ function mountSelect(select: HTMLSelectElement): void {
         node.appendChild(renderIcon(item.kind, item.value, mode === 'icon' ? iconColor : ''));
         node.addEventListener('mouseenter', function () {
             active = index;
-            markActive();
+            markActive(false);
         });
         node.addEventListener('click', function () {
             applyItem(item);
@@ -253,16 +284,23 @@ function mountSelect(select: HTMLSelectElement): void {
         nameEl.textContent = item ? iconTitle(item) : '';
     };
 
-    const markActive = function () {
-        const cells = grid.children;
+    const markActive = function (scroll: boolean) {
+        const cells = grid.querySelectorAll('.iconpicker-cell');
+        let current: HTMLElement | null = null;
         for (let i = 0; i < cells.length; i++) {
-            if (i === active) {
-                cells[i].classList.add('is-active');
+            const node = cells[i] as HTMLElement;
+            const index = Number(node.getAttribute('data-index'));
+            if (index === active) {
+                node.classList.add('is-active');
+                current = node;
             } else {
-                cells[i].classList.remove('is-active');
+                node.classList.remove('is-active');
             }
         }
         showName(matches[active] || null);
+        if (scroll && current) {
+            current.scrollIntoView({ block: 'nearest' });
+        }
     };
 
     const applyItem = function (item: IconItem | null) {
@@ -323,8 +361,9 @@ function mountSelect(select: HTMLSelectElement): void {
     };
 
     const refill = function () {
-        matches = filterItems(search.value || '', mode);
-        drawGrid(true);
+        const found = filterItems(search.value || '', mode);
+        matches = mode === 'icon' ? sortByTheme(found) : found;
+        drawGrid();
     };
 
     clear.addEventListener('click', function (event) {
@@ -386,15 +425,13 @@ function mountSelect(select: HTMLSelectElement): void {
             moveActive(event.key);
         }
     });
-    grid.addEventListener('scroll', function () {
-        if (grid.scrollTop + grid.clientHeight < grid.scrollHeight - 24) {
+    grid.addEventListener('wheel', function (event) {
+        if (grid.scrollHeight <= grid.clientHeight) {
             return;
         }
-        if (shown >= matches.length) {
-            return;
-        }
-        shown = Math.min(matches.length, shown + WINDOW);
-        drawGrid(false);
+        grid.scrollTop += event.deltaY;
+        event.preventDefault();
+        event.stopPropagation();
     });
 
     const moveActive = function (key: string) {
@@ -410,11 +447,7 @@ function mountSelect(select: HTMLSelectElement): void {
         } else if (key === 'ArrowUp') {
             active = Math.max(0, active - COLUMNS);
         }
-        if (active >= shown) {
-            shown = Math.min(matches.length, active + 1);
-            drawGrid(false);
-        }
-        markActive();
+        markActive(true);
     };
 
     drawButton();
@@ -503,7 +536,7 @@ function paintFolder(row: Element): void {
         return;
     }
     const id = row.getAttribute('data-folder_id') || '';
-    const icon = row.querySelector('i.glyphicon');
+    const icon = row.querySelector('i.glyphicon, i.iconpicker-mark');
     if (!icon) {
         return;
     }
@@ -612,6 +645,57 @@ function lucideBody(name: string): string {
     return found && found.body ? found.body : '';
 }
 
+function themeOf(item: IconItem): string {
+    const raw = (item.value + ' ' + item.label + ' ' + item.aliases.join(' ')).toLowerCase();
+    const tokens = raw.split(/[^a-z0-9äöüß]+/);
+    const blob = ' ' + tokens.join(' ') + ' ';
+    for (let i = 0; i < THEMES.length; i++) {
+        const words = THEMES[i].words;
+        for (let j = 0; j < words.length; j++) {
+            const word = words[j];
+            if (word.indexOf('-') !== -1) {
+                if (raw.indexOf(word) !== -1) {
+                    return THEMES[i].id;
+                }
+            } else if (blob.indexOf(' ' + word + ' ') !== -1) {
+                return THEMES[i].id;
+            }
+        }
+    }
+    return 'other';
+}
+
+function themeLabel(id: string): string {
+    for (let i = 0; i < THEMES.length; i++) {
+        if (THEMES[i].id === id) {
+            return THEMES[i].label;
+        }
+    }
+    return 'Sonstiges';
+}
+
+function sortByTheme(list: IconItem[]): IconItem[] {
+    const order: Record<string, number> = { other: THEMES.length };
+    for (let i = 0; i < THEMES.length; i++) {
+        order[THEMES[i].id] = i;
+    }
+    const copy = list.slice();
+    copy.sort(function (a, b) {
+        const diff = (order[themeOf(a)] || 0) - (order[themeOf(b)] || 0);
+        if (diff !== 0) {
+            return diff;
+        }
+        if (a.label < b.label) {
+            return -1;
+        }
+        if (a.label > b.label) {
+            return 1;
+        }
+        return a.kind < b.kind ? -1 : 1;
+    });
+    return copy;
+}
+
 function filterItems(query: string, mode: string): IconItem[] {
     const needle = query.replace(/^\s+|\s+$/g, '').toLowerCase();
     const recent = needle ? [] : recentItems().filter(function (item) {
@@ -648,11 +732,11 @@ function filterItems(query: string, mode: string): IconItem[] {
             }
         }
         pool.length = 0;
-        for (let j = 0; j < lucide.length; j++) {
-            pool.push(lucide[j]);
-        }
         for (let k = 0; k < glyphs.length; k++) {
             pool.push(glyphs[k]);
+        }
+        for (let j = 0; j < lucide.length; j++) {
+            pool.push(lucide[j]);
         }
     }
     const seen: Record<string, boolean> = {};
