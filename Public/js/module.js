@@ -2,33 +2,37 @@
 (function () {
     var LUCIDE_COLORS = ['', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#ffffff'];
     var THEMES = [
-        { id: 'arrows', label: 'Pfeile', words: ['arrow', 'chevron', 'caret', 'triangle'] },
-        { id: 'mail', label: 'Kommunikation', words: ['mail', 'envelope', 'inbox', 'send', 'message', 'chat', 'comment', 'phone', 'bell', 'megaphone', 'bullhorn', 'at-sign', 'rss', 'earphone'] },
-        { id: 'people', label: 'Personen', words: ['user', 'users', 'person', 'contact', 'baby', 'hand', 'thumbs', 'smile', 'frown', 'meh'] },
-        { id: 'files', label: 'Dateien', words: ['file', 'files', 'folder', 'document', 'clipboard', 'paperclip', 'archive', 'book', 'bookmark', 'notebook', 'newspaper', 'scroll'] },
-        { id: 'edit', label: 'Bearbeiten', words: ['pencil', 'pen', 'edit', 'scissors', 'copy', 'trash', 'eraser', 'bold', 'italic', 'font', 'align', 'list', 'indent', 'quote', 'type', 'heading', 'pilcrow', 'baseline'] },
-        { id: 'security', label: 'Sicherheit', words: ['lock', 'key', 'shield', 'eye', 'fingerprint', 'scan', 'badge', 'schloss'] },
+        { id: 'arrows', label: 'Arrows', words: ['arrow', 'chevron', 'caret', 'triangle'] },
+        { id: 'mail', label: 'Communication', words: ['mail', 'envelope', 'inbox', 'send', 'message', 'chat', 'comment', 'phone', 'bell', 'megaphone', 'bullhorn', 'at-sign', 'rss', 'earphone'] },
+        { id: 'people', label: 'People', words: ['user', 'users', 'person', 'contact', 'baby', 'hand', 'thumbs', 'smile', 'frown', 'meh'] },
+        { id: 'files', label: 'Files', words: ['file', 'files', 'folder', 'document', 'clipboard', 'paperclip', 'archive', 'book', 'bookmark', 'notebook', 'newspaper', 'scroll'] },
+        { id: 'edit', label: 'Editing', words: ['pencil', 'pen', 'edit', 'scissors', 'copy', 'trash', 'eraser', 'bold', 'italic', 'font', 'align', 'list', 'indent', 'quote', 'type', 'heading', 'pilcrow', 'baseline'] },
+        { id: 'security', label: 'Security', words: ['lock', 'key', 'shield', 'eye', 'fingerprint', 'scan', 'badge', 'schloss'] },
         { id: 'status', label: 'Status', words: ['check', 'alert', 'info', 'help', 'ban', 'bug', 'circle-x', 'x-circle', 'warning', 'octagon', 'siren', 'flag'] },
-        { id: 'time', label: 'Zeit', words: ['calendar', 'clock', 'timer', 'hourglass', 'history', 'alarm', 'watch'] },
-        { id: 'place', label: 'Ort und Reise', words: ['map', 'home', 'house', 'building', 'globe', 'navigation', 'compass', 'plane', 'car', 'train', 'ship', 'truck', 'bike', 'bed', 'hotel', 'luggage', 'anchor'] },
-        { id: 'shop', label: 'Handel', words: ['cart', 'credit', 'bank', 'wallet', 'coin', 'dollar', 'euro', 'shopping', 'gift', 'tag', 'tags', 'barcode', 'qr', 'receipt', 'store', 'pound', 'yen', 'bitcoin'] },
-        { id: 'media', label: 'Medien', words: ['image', 'camera', 'video', 'film', 'music', 'mic', 'volume', 'play', 'pause', 'headphone', 'tv', 'clapper', 'podcast', 'radio', 'speaker'] },
-        { id: 'devices', label: 'Geräte', words: ['monitor', 'laptop', 'smartphone', 'tablet', 'printer', 'cpu', 'server', 'hard-drive', 'wifi', 'battery', 'plug', 'keyboard', 'mouse', 'hdmi', 'usb', 'router', 'pc'] },
-        { id: 'nature', label: 'Natur', words: ['sun', 'moon', 'cloud', 'tree', 'leaf', 'flower', 'droplet', 'flame', 'zap', 'snow', 'wind', 'mountain', 'umbrella'] },
-        { id: 'other', label: 'Sonstiges', words: [] }
+        { id: 'time', label: 'Time', words: ['calendar', 'clock', 'timer', 'hourglass', 'history', 'alarm', 'watch'] },
+        { id: 'place', label: 'Places and travel', words: ['map', 'home', 'house', 'building', 'globe', 'navigation', 'compass', 'plane', 'car', 'train', 'ship', 'truck', 'bike', 'bed', 'hotel', 'luggage', 'anchor'] },
+        { id: 'shop', label: 'Commerce', words: ['cart', 'credit', 'bank', 'wallet', 'coin', 'dollar', 'euro', 'shopping', 'gift', 'tag', 'tags', 'barcode', 'qr', 'receipt', 'store', 'pound', 'yen', 'bitcoin'] },
+        { id: 'media', label: 'Media', words: ['image', 'camera', 'video', 'film', 'music', 'mic', 'volume', 'play', 'pause', 'headphone', 'tv', 'clapper', 'podcast', 'radio', 'speaker'] },
+        { id: 'devices', label: 'Devices', words: ['monitor', 'laptop', 'smartphone', 'tablet', 'printer', 'cpu', 'server', 'hard-drive', 'wifi', 'battery', 'plug', 'keyboard', 'mouse', 'hdmi', 'usb', 'router', 'pc'] },
+        { id: 'nature', label: 'Nature', words: ['sun', 'moon', 'cloud', 'tree', 'leaf', 'flower', 'droplet', 'flame', 'zap', 'snow', 'wind', 'mountain', 'umbrella'] },
+        { id: 'other', label: 'Other', words: [] }
     ];
     var COLUMNS = 8;
     var RECENT_KEY = 'iconpicker.recent';
     var boot = null;
+    var iconRevision = 0;
+    var appliedIconSig = '';
     var items = [];
     var ready = false;
     var pending = null;
     var catalogsRequested = false;
     function iconpickerStart(config) {
         boot = config;
+        iconRevision = Number(config.revision || 0);
         if (!boot.icons) {
             boot.icons = {};
         }
+        appliedIconSig = iconMapSig(boot.icons);
         bindSave();
         mount(document);
         paintFolders();
@@ -66,18 +70,32 @@
             }
             var previous = options.success;
             options.success = function (data) {
+                var releaseSave = window.iconpickerReleaseFolderSave;
+                window.iconpickerReleaseFolderSave = undefined;
                 var finish = function () {
                     if (previous) {
                         previous(data);
                     }
                 };
+                var released = false;
+                var release = function () {
+                    if (released) {
+                        return;
+                    }
+                    released = true;
+                    if (releaseSave) {
+                        releaseSave();
+                    }
+                };
                 if (!boot || !data || data.status !== 'success') {
                     finish();
+                    release();
                     return;
                 }
                 var id = data.id ? Number(data.id) : Number(fields.folder_id || 0);
                 if (!id) {
                     showFloatingAlert('error', boot.failed, true);
+                    release();
                     return;
                 }
                 var failed = boot.failed;
@@ -96,49 +114,78 @@
                 };
                 fsAjax(payload, url, function (response) {
                     if (response && response.status === 'success') {
+                        var saved = Number(response.revision || 0);
+                        if (saved > iconRevision) {
+                            iconRevision = saved;
+                        }
                         rememberBoot(String(id), payload.kind, payload.value, payload.color);
                         paintFolders();
                         paintAdmin();
                         finish();
+                        release();
                         return;
                     }
                     showFloatingAlert('error', (response && response.msg) || failed, true);
+                    release();
                 }, true, function () {
                     showFloatingAlert('error', failed, true);
+                    release();
                 });
             };
         });
     }
     function applyFolderIcons(detail) {
-        if (!boot) {
+        if (!boot || !detail || typeof detail !== 'object') {
+            return;
+        }
+        var body = detail;
+        if (!body.icons || typeof body.icons !== 'object' || Array.isArray(body.icons)) {
+            return;
+        }
+        var revision = Number(body.revision || 0);
+        if (revision < iconRevision) {
             return;
         }
         var next = {};
-        if (detail && typeof detail === 'object') {
-            var rows = detail;
-            for (var id in rows) {
-                if (!Object.prototype.hasOwnProperty.call(rows, id)) {
-                    continue;
-                }
-                var row = rows[id];
-                if (!row || !row.kind) {
-                    continue;
-                }
-                next[id] = {
-                    kind: row.kind,
-                    value: row.value || '',
-                    color: row.color || ''
-                };
+        for (var id in body.icons) {
+            if (!Object.prototype.hasOwnProperty.call(body.icons, id)) {
+                continue;
             }
+            var row = body.icons[id];
+            if (!row || !row.kind) {
+                continue;
+            }
+            next[id] = {
+                kind: row.kind,
+                value: row.value || '',
+                color: row.color || ''
+            };
+        }
+        var sig = iconMapSig(next);
+        if (revision === iconRevision && sig === appliedIconSig) {
+            return;
         }
         boot.icons = next;
+        appliedIconSig = sig;
+        if (revision > iconRevision) {
+            iconRevision = revision;
+        }
         paintFolders();
+    }
+    function iconMapSig(rows) {
+        var ids = Object.keys(rows).sort();
+        var parts = [];
+        for (var i = 0; i < ids.length; i++) {
+            var row = rows[ids[i]];
+            parts.push(ids[i] + '\n' + row.kind + '\n' + (row.value || '') + '\n' + (row.color || ''));
+        }
+        return parts.join('\n');
     }
     function rememberBoot(id, kind, value, color) {
         if (!boot) {
             return;
         }
-        if (kind === 'lucide' || kind === 'emoji' || (kind === 'glyph' && color)) {
+        if ((kind === 'lucide' || kind === 'emoji' || kind === 'glyph') && value) {
             boot.icons[id] = { kind: kind, value: value, color: color };
             return;
         }
@@ -207,7 +254,7 @@
         var clear = document.createElement('button');
         clear.type = 'button';
         clear.className = 'btn btn-link btn-sm iconpicker-clear';
-        clear.textContent = 'Icon entfernen';
+        clear.textContent = label('clear', 'Remove icon');
         bar.appendChild(nameEl);
         bar.appendChild(clear);
         var grid = document.createElement('div');
@@ -515,6 +562,21 @@
             paintFolder(rows[i]);
         }
     }
+    function iconDrawn(icon, kind, value, color) {
+        if (icon.getAttribute('data-iconpicker-sig') !== kind + '\n' + value + '\n' + color) {
+            return false;
+        }
+        if (kind === 'lucide') {
+            return !!icon.querySelector('svg.iconpicker-svg');
+        }
+        if (kind === 'emoji') {
+            return (icon.textContent || '') === value;
+        }
+        return icon.classList.contains('glyphicon-' + value);
+    }
+    function rememberIcon(icon, kind, value, color) {
+        icon.setAttribute('data-iconpicker-sig', kind + '\n' + value + '\n' + color);
+    }
     function paintFolder(row) {
         if (!boot) {
             return;
@@ -525,28 +587,49 @@
             return;
         }
         var choice = boot.icons[id];
-        if (icon.className.indexOf('glyphicon-star') !== -1 || glyphSuffix(icon) !== '') {
-            if (choice && choice.color && icon instanceof HTMLElement) {
-                icon.style.color = choice.color;
+        if (choice && (choice.kind === 'lucide' || choice.kind === 'emoji') && choice.value) {
+            var color = choice.color || '';
+            if (iconDrawn(icon, choice.kind, choice.value, color)) {
+                return;
             }
+            icon.className = 'iconpicker-mark';
+            icon.innerHTML = '';
+            if (icon instanceof HTMLElement) {
+                icon.style.color = '';
+            }
+            var mark = renderIcon(choice.kind, choice.value, color);
+            icon.appendChild(mark);
+            var drawn = choice.kind === 'emoji'
+                || (mark instanceof Element && mark.classList.contains('iconpicker-svg'));
+            if (drawn) {
+                rememberIcon(icon, choice.kind, choice.value, color);
+            }
+            return;
+        }
+        if (choice && choice.kind === 'glyph' && choice.value) {
+            var color = choice.color || '';
+            if (iconDrawn(icon, 'glyph', choice.value, color)) {
+                return;
+            }
+            icon.className = 'glyphicon glyphicon-' + choice.value;
+            icon.innerHTML = '';
+            if (icon instanceof HTMLElement) {
+                icon.style.color = color;
+            }
+            rememberIcon(icon, 'glyph', choice.value, color);
             return;
         }
         if (!choice) {
+            if (icon.classList.contains('iconpicker-mark')) {
+                icon.className = 'glyphicon glyphicon-';
+                icon.innerHTML = '';
+                icon.removeAttribute('data-iconpicker-sig');
+                if (icon instanceof HTMLElement) {
+                    icon.style.color = '';
+                }
+            }
             return;
         }
-        icon.className = 'iconpicker-mark';
-        icon.innerHTML = '';
-        icon.appendChild(renderIcon(choice.kind, choice.value, choice.color || ''));
-    }
-    function glyphSuffix(icon) {
-        var parts = icon.className.split(/\s+/);
-        for (var i = 0; i < parts.length; i++) {
-            var name_1 = parts[i];
-            if (name_1.indexOf('glyphicon-') === 0 && name_1.length > 'glyphicon-'.length) {
-                return name_1.substring('glyphicon-'.length);
-            }
-        }
-        return '';
     }
     function watchFolders() {
         var root = document.querySelector('#folders');
@@ -643,13 +726,18 @@
         }
         return 'other';
     }
+    function label(id, fallback) {
+        var labels = boot && boot.labels;
+        var value = labels ? labels[id] : '';
+        return value || fallback;
+    }
     function themeLabel(id) {
         for (var i = 0; i < THEMES.length; i++) {
             if (THEMES[i].id === id) {
-                return THEMES[i].label;
+                return label(id, THEMES[i].label);
             }
         }
-        return 'Sonstiges';
+        return label('other', 'Other');
     }
     function sortByTheme(list) {
         var order = { other: THEMES.length };
@@ -834,13 +922,13 @@
             }
         }
         for (var i = 0; i < glyphs.length; i++) {
-            var name_2 = glyphs[i];
-            out.push({ kind: 'glyph', value: name_2, label: name_2, aliases: aliasOf[name_2] || [] });
+            var name_1 = glyphs[i];
+            out.push({ kind: 'glyph', value: name_1, label: name_1, aliases: aliasOf[name_1] || [] });
         }
-        for (var name_3 in lucide) {
-            if (Object.prototype.hasOwnProperty.call(lucide, name_3)) {
-                var item = { kind: 'lucide', value: name_3, label: name_3, aliases: [] };
-                item.body = lucide[name_3];
+        for (var name_2 in lucide) {
+            if (Object.prototype.hasOwnProperty.call(lucide, name_2)) {
+                var item = { kind: 'lucide', value: name_2, label: name_2, aliases: [] };
+                item.body = lucide[name_2];
                 out.push(item);
             }
         }

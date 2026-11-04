@@ -54,6 +54,7 @@ class IconPickerServiceProvider extends ServiceProvider
             }
             $mailboxId = self::mailboxId();
             $icons = new \stdClass();
+            $revision = 0;
             if ($mailboxId > 0) {
                 try {
                     $loaded = FolderIcons::map($mailboxId);
@@ -63,13 +64,36 @@ class IconPickerServiceProvider extends ServiceProvider
                 } catch (\Throwable $e) {
                     $icons = new \stdClass();
                 }
+                try {
+                    $revision = FolderIcons::revision($mailboxId);
+                } catch (\Throwable $e) {
+                    $revision = 0;
+                }
             }
             $boot = array(
                 'url' => $url,
                 'base' => \Module::getPublicPath('iconpicker'),
                 'mailboxId' => $mailboxId,
                 'icons' => $icons,
+                'revision' => $revision,
                 'failed' => __('Invalid :field', array('field' => __('Icon'))),
+                'labels' => array(
+                    'clear' => __('Remove icon'),
+                    'arrows' => __('Arrows'),
+                    'mail' => __('Communication'),
+                    'people' => __('People'),
+                    'files' => __('Files'),
+                    'edit' => __('Editing'),
+                    'security' => __('Security'),
+                    'status' => __('Status'),
+                    'time' => __('Time'),
+                    'place' => __('Places and travel'),
+                    'shop' => __('Commerce'),
+                    'media' => __('Media'),
+                    'devices' => __('Devices'),
+                    'nature' => __('Nature'),
+                    'other' => __('Other icons'),
+                ),
             );
             echo 'iconpickerStart('.json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES).');';
         }, 20, 0);

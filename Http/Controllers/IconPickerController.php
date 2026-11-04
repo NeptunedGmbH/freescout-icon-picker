@@ -14,6 +14,7 @@ class IconPickerController extends Controller
         $folderId = (int) $request->input('folder_id');
         $mailboxId = (int) $request->input('mailbox_id');
 
+        $revision = 0;
         if ($action === 'delete') {
             $error = FolderIcons::delete($folderId, $mailboxId);
         } else {
@@ -25,6 +26,9 @@ class IconPickerController extends Controller
                 (string) $request->input('color')
             );
             $error = $stored['error'];
+            if ($error === null) {
+                $revision = (int) $stored['revision'];
+            }
         }
 
         if ($error !== null) {
@@ -40,12 +44,20 @@ class IconPickerController extends Controller
                 $mailboxId = (int) $folder->mailbox_id;
             }
         }
-        if ($mailboxId > 0 && class_exists(\Modules\NestedTags\Events\FolderSidebarRefresh::class)) {
-            \Modules\NestedTags\Events\FolderSidebarRefresh::send($mailboxId);
+        if ($action === 'delete' && $mailboxId > 0) {
+            $revision = FolderIcons::revision($mailboxId);
+        }
+        try {
+            if ($mailboxId > 0 && class_exists(\Modules\NestedTags\Events\FolderSidebarRefresh::class)) {
+                \Modules\NestedTags\Events\FolderSidebarRefresh::send($mailboxId);
+            }
+        } catch (\Throwable $e) {
+            // The icon row is already stored. A failed broadcast must not fail the save.
         }
 
         return \Response::json(array(
             'status' => 'success',
+            'revision' => $revision,
         ));
     }
 

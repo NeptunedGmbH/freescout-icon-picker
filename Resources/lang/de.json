@@ -2,5 +2,21 @@
     "Invalid :field": "Ungültiges Feld: :field",
     "Icon": "Icon",
     "Not enough permissions": "Nicht genug Rechte",
-    "Folder not found": "Ordner nicht gefunden"
+    "Folder not found": "Ordner nicht gefunden",
+    "Mailbox": "Postfach",
+    "Remove icon": "Icon entfernen",
+    "Arrows": "Pfeile",
+    "Communication": "Kommunikation",
+    "People": "Personen",
+    "Files": "Dateien",
+    "Editing": "Bearbeiten",
+    "Security": "Sicherheit",
+    "Status": "Status",
+    "Time": "Zeit",
+    "Places and travel": "Ort und Reise",
+    "Commerce": "Handel",
+    "Media": "Medien",
+    "Devices": "Geräte",
+    "Nature": "Natur",
+    "Other icons": "Sonstiges"
 }

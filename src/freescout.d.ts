@@ -8,6 +8,7 @@ interface IconPickerResponse {
     status?: string;
     id?: number;
     msg?: string;
+    revision?: number;
 }
 
 interface IconPickerAjaxFn {
@@ -44,4 +45,5 @@ interface Window {
     initNewFolder?: InitNewFolderFn;
     initCustomFoldersForm?: InitCustomFoldersFormFn;
     iconpickerStart?: (config: unknown) => void;
+    iconpickerReleaseFolderSave?: () => void;
 }

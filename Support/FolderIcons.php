@@ -11,6 +11,47 @@ use App\Mailbox;
 class FolderIcons
 {
     /**
+     * Revision just written in this request. Option::set does not refresh its cache.
+     *
+     * @var array<int, int>
+     */
+    private static $bumped = array();
+
+    /**
+     * @param int $mailboxId
+     * @return int
+     */
+    public static function revision($mailboxId)
+    {
+        $mailboxId = (int) $mailboxId;
+        if ($mailboxId < 1) {
+            return 0;
+        }
+        if (isset(self::$bumped[$mailboxId])) {
+            return self::$bumped[$mailboxId];
+        }
+
+        return (int) \Option::get(self::revisionName($mailboxId), 0);
+    }
+
+    /**
+     * @param int $mailboxId
+     * @return int
+     */
+    public static function bump($mailboxId)
+    {
+        $mailboxId = (int) $mailboxId;
+        if ($mailboxId < 1) {
+            return 0;
+        }
+        $next = self::revision($mailboxId) + 1;
+        \Option::set(self::revisionName($mailboxId), (string) $next);
+        self::$bumped[$mailboxId] = $next;
+
+        return $next;
+    }
+
+    /**
      * @param int $mailboxId
      * @return array<int, array{kind:string,value:string}>
      */
@@ -66,11 +107,17 @@ class FolderIcons
         }
         $rows = self::rows();
         $result = IconPlan::save($rows, $built, (int) $mailboxId, $allowed, $choice);
+        $revision = 0;
         if ($result['error'] === null) {
             self::write($rows, $result['rows']);
+            $revision = self::bump((int) $built['mailbox_id']);
         }
 
-        return array('error' => $result['error'], 'select' => $result['select']);
+        return array(
+            'error' => $result['error'],
+            'select' => $result['select'],
+            'revision' => $revision,
+        );
     }
 
     /**
@@ -91,6 +138,13 @@ class FolderIcons
         $result = IconPlan::remove($rows, $built, (int) $mailboxId, $allowed);
         if ($result['error'] === null) {
             self::write($rows, $result['rows']);
+            $bumpId = (int) $built['mailbox_id'];
+            if ($bumpId < 1) {
+                $bumpId = (int) $mailboxId;
+            }
+            if ($bumpId > 0) {
+                self::bump($bumpId);
+            }
         }
 
         return $result['error'];
@@ -205,5 +259,14 @@ class FolderIcons
     private static function iconsDirectory()
     {
         return dirname(__DIR__).'/Public/icons';
+    }
+
+    /**
+     * @param int $mailboxId
+     * @return string
+     */
+    private static function revisionName($mailboxId)
+    {
+        return 'iconpicker.revision.'.(int) $mailboxId;
     }
 }

@@ -9,7 +9,9 @@ interface IconBoot {
     base: string;
     mailboxId: number;
     icons: Record<string, IconRow>;
+    revision?: number;
     failed: string;
+    labels?: Record<string, string>;
 }
 
 interface IconItem {
@@ -28,25 +30,27 @@ interface PendingChoice {
 (function () {
 const LUCIDE_COLORS = ['', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#9b59b6', '#ffffff'];
 const THEMES: { id: string; label: string; words: string[] }[] = [
-    { id: 'arrows', label: 'Pfeile', words: ['arrow', 'chevron', 'caret', 'triangle'] },
-    { id: 'mail', label: 'Kommunikation', words: ['mail', 'envelope', 'inbox', 'send', 'message', 'chat', 'comment', 'phone', 'bell', 'megaphone', 'bullhorn', 'at-sign', 'rss', 'earphone'] },
-    { id: 'people', label: 'Personen', words: ['user', 'users', 'person', 'contact', 'baby', 'hand', 'thumbs', 'smile', 'frown', 'meh'] },
-    { id: 'files', label: 'Dateien', words: ['file', 'files', 'folder', 'document', 'clipboard', 'paperclip', 'archive', 'book', 'bookmark', 'notebook', 'newspaper', 'scroll'] },
-    { id: 'edit', label: 'Bearbeiten', words: ['pencil', 'pen', 'edit', 'scissors', 'copy', 'trash', 'eraser', 'bold', 'italic', 'font', 'align', 'list', 'indent', 'quote', 'type', 'heading', 'pilcrow', 'baseline'] },
-    { id: 'security', label: 'Sicherheit', words: ['lock', 'key', 'shield', 'eye', 'fingerprint', 'scan', 'badge', 'schloss'] },
+    { id: 'arrows', label: 'Arrows', words: ['arrow', 'chevron', 'caret', 'triangle'] },
+    { id: 'mail', label: 'Communication', words: ['mail', 'envelope', 'inbox', 'send', 'message', 'chat', 'comment', 'phone', 'bell', 'megaphone', 'bullhorn', 'at-sign', 'rss', 'earphone'] },
+    { id: 'people', label: 'People', words: ['user', 'users', 'person', 'contact', 'baby', 'hand', 'thumbs', 'smile', 'frown', 'meh'] },
+    { id: 'files', label: 'Files', words: ['file', 'files', 'folder', 'document', 'clipboard', 'paperclip', 'archive', 'book', 'bookmark', 'notebook', 'newspaper', 'scroll'] },
+    { id: 'edit', label: 'Editing', words: ['pencil', 'pen', 'edit', 'scissors', 'copy', 'trash', 'eraser', 'bold', 'italic', 'font', 'align', 'list', 'indent', 'quote', 'type', 'heading', 'pilcrow', 'baseline'] },
+    { id: 'security', label: 'Security', words: ['lock', 'key', 'shield', 'eye', 'fingerprint', 'scan', 'badge', 'schloss'] },
     { id: 'status', label: 'Status', words: ['check', 'alert', 'info', 'help', 'ban', 'bug', 'circle-x', 'x-circle', 'warning', 'octagon', 'siren', 'flag'] },
-    { id: 'time', label: 'Zeit', words: ['calendar', 'clock', 'timer', 'hourglass', 'history', 'alarm', 'watch'] },
-    { id: 'place', label: 'Ort und Reise', words: ['map', 'home', 'house', 'building', 'globe', 'navigation', 'compass', 'plane', 'car', 'train', 'ship', 'truck', 'bike', 'bed', 'hotel', 'luggage', 'anchor'] },
-    { id: 'shop', label: 'Handel', words: ['cart', 'credit', 'bank', 'wallet', 'coin', 'dollar', 'euro', 'shopping', 'gift', 'tag', 'tags', 'barcode', 'qr', 'receipt', 'store', 'pound', 'yen', 'bitcoin'] },
-    { id: 'media', label: 'Medien', words: ['image', 'camera', 'video', 'film', 'music', 'mic', 'volume', 'play', 'pause', 'headphone', 'tv', 'clapper', 'podcast', 'radio', 'speaker'] },
-    { id: 'devices', label: 'Geräte', words: ['monitor', 'laptop', 'smartphone', 'tablet', 'printer', 'cpu', 'server', 'hard-drive', 'wifi', 'battery', 'plug', 'keyboard', 'mouse', 'hdmi', 'usb', 'router', 'pc'] },
-    { id: 'nature', label: 'Natur', words: ['sun', 'moon', 'cloud', 'tree', 'leaf', 'flower', 'droplet', 'flame', 'zap', 'snow', 'wind', 'mountain', 'umbrella'] },
-    { id: 'other', label: 'Sonstiges', words: [] }
+    { id: 'time', label: 'Time', words: ['calendar', 'clock', 'timer', 'hourglass', 'history', 'alarm', 'watch'] },
+    { id: 'place', label: 'Places and travel', words: ['map', 'home', 'house', 'building', 'globe', 'navigation', 'compass', 'plane', 'car', 'train', 'ship', 'truck', 'bike', 'bed', 'hotel', 'luggage', 'anchor'] },
+    { id: 'shop', label: 'Commerce', words: ['cart', 'credit', 'bank', 'wallet', 'coin', 'dollar', 'euro', 'shopping', 'gift', 'tag', 'tags', 'barcode', 'qr', 'receipt', 'store', 'pound', 'yen', 'bitcoin'] },
+    { id: 'media', label: 'Media', words: ['image', 'camera', 'video', 'film', 'music', 'mic', 'volume', 'play', 'pause', 'headphone', 'tv', 'clapper', 'podcast', 'radio', 'speaker'] },
+    { id: 'devices', label: 'Devices', words: ['monitor', 'laptop', 'smartphone', 'tablet', 'printer', 'cpu', 'server', 'hard-drive', 'wifi', 'battery', 'plug', 'keyboard', 'mouse', 'hdmi', 'usb', 'router', 'pc'] },
+    { id: 'nature', label: 'Nature', words: ['sun', 'moon', 'cloud', 'tree', 'leaf', 'flower', 'droplet', 'flame', 'zap', 'snow', 'wind', 'mountain', 'umbrella'] },
+    { id: 'other', label: 'Other', words: [] }
 ];
 const COLUMNS = 8;
 const RECENT_KEY = 'iconpicker.recent';
 
 let boot: IconBoot | null = null;
+let iconRevision = 0;
+let appliedIconSig = '';
 let items: IconItem[] = [];
 let ready = false;
 let pending: PendingChoice | null = null;
@@ -54,9 +58,11 @@ let catalogsRequested = false;
 
 function iconpickerStart(config: IconBoot): void {
     boot = config;
+    iconRevision = Number(config.revision || 0);
     if (!boot.icons) {
         boot.icons = {};
     }
+    appliedIconSig = iconMapSig(boot.icons);
     bindSave();
     mount(document);
     paintFolders();
@@ -95,18 +101,32 @@ function bindSave(): void {
         }
         const previous = options.success;
         options.success = function (data) {
+            const releaseSave = window.iconpickerReleaseFolderSave;
+            window.iconpickerReleaseFolderSave = undefined;
             const finish = function () {
                 if (previous) {
                     previous(data);
                 }
             };
+            let released = false;
+            const release = function () {
+                if (released) {
+                    return;
+                }
+                released = true;
+                if (releaseSave) {
+                    releaseSave();
+                }
+            };
             if (!boot || !data || data.status !== 'success') {
                 finish();
+                release();
                 return;
             }
             const id = data.id ? Number(data.id) : Number(fields.folder_id || 0);
             if (!id) {
                 showFloatingAlert('error', boot.failed, true);
+                release();
                 return;
             }
             const failed = boot.failed;
@@ -125,51 +145,81 @@ function bindSave(): void {
             };
             fsAjax(payload, url, function (response) {
                 if (response && response.status === 'success') {
+                    const saved = Number(response.revision || 0);
+                    if (saved > iconRevision) {
+                        iconRevision = saved;
+                    }
                     rememberBoot(String(id), payload.kind as string, payload.value as string, payload.color as string);
                     paintFolders();
                     paintAdmin();
                     finish();
+                    release();
                     return;
                 }
                 showFloatingAlert('error', (response && response.msg) || failed, true);
+                release();
             }, true, function () {
                 showFloatingAlert('error', failed, true);
+                release();
             });
         };
     });
 }
 
 function applyFolderIcons(detail: unknown): void {
-    if (!boot) {
+    if (!boot || !detail || typeof detail !== 'object') {
+        return;
+    }
+    const body = detail as { icons?: Record<string, IconRow>; revision?: number };
+    if (!body.icons || typeof body.icons !== 'object' || Array.isArray(body.icons)) {
+        return;
+    }
+    const revision = Number(body.revision || 0);
+    if (revision < iconRevision) {
         return;
     }
     const next: Record<string, IconRow> = {};
-    if (detail && typeof detail === 'object') {
-        const rows = detail as Record<string, IconRow>;
-        for (const id in rows) {
-            if (!Object.prototype.hasOwnProperty.call(rows, id)) {
-                continue;
-            }
-            const row = rows[id];
-            if (!row || !row.kind) {
-                continue;
-            }
-            next[id] = {
-                kind: row.kind,
-                value: row.value || '',
-                color: row.color || ''
-            };
+    for (const id in body.icons) {
+        if (!Object.prototype.hasOwnProperty.call(body.icons, id)) {
+            continue;
         }
+        const row = body.icons[id];
+        if (!row || !row.kind) {
+            continue;
+        }
+        next[id] = {
+            kind: row.kind,
+            value: row.value || '',
+            color: row.color || ''
+        };
+    }
+    const sig = iconMapSig(next);
+    if (revision === iconRevision && sig === appliedIconSig) {
+        return;
     }
     boot.icons = next;
+    appliedIconSig = sig;
+    if (revision > iconRevision) {
+        iconRevision = revision;
+    }
     paintFolders();
+}
+
+function iconMapSig(rows: Record<string, IconRow>): string {
+    const ids = Object.keys(rows).sort();
+    const parts: string[] = [];
+    for (let i = 0; i < ids.length; i++) {
+        const row = rows[ids[i]];
+        parts.push(ids[i] + '\n' + row.kind + '\n' + (row.value || '') + '\n' + (row.color || ''));
+    }
+    return parts.join('\n');
 }
 
 function rememberBoot(id: string, kind: string, value: string, color: string): void {
     if (!boot) {
         return;
     }
-    if (kind === 'lucide' || kind === 'emoji' || (kind === 'glyph' && color)) {
+    if ((kind === 'lucide' || kind === 'emoji' || kind === 'glyph') && value) {
         boot.icons[id] = { kind: kind, value: value, color: color };
         return;
     }
@@ -238,7 +288,7 @@ function mountSelect(select: HTMLSelectElement): void {
     const clear = document.createElement('button');
     clear.type = 'button';
     clear.className = 'btn btn-link btn-sm iconpicker-clear';
-    clear.textContent = 'Icon entfernen';
+    clear.textContent = label('clear', 'Remove icon');
     bar.appendChild(nameEl);
     bar.appendChild(clear);
     const grid = document.createElement('div');
@@ -560,6 +610,23 @@ function paintFolders(): void {
     }
 }
 
+function iconDrawn(icon: Element, kind: string, value: string, color: string): boolean {
+    if (icon.getAttribute('data-iconpicker-sig') !== kind + '\n' + value + '\n' + color) {
+        return false;
+    }
+    if (kind === 'lucide') {
+        return !!icon.querySelector('svg.iconpicker-svg');
+    }
+    if (kind === 'emoji') {
+        return (icon.textContent || '') === value;
+    }
+    return icon.classList.contains('glyphicon-' + value);
+}
+
+function rememberIcon(icon: Element, kind: string, value: string, color: string): void {
+    icon.setAttribute('data-iconpicker-sig', kind + '\n' + value + '\n' + color);
+}
+
 function paintFolder(row: Element): void {
     if (!boot) {
         return;
@@ -570,29 +637,49 @@ function paintFolder(row: Element): void {
         return;
     }
     const choice = boot.icons[id];
-    if (icon.className.indexOf('glyphicon-star') !== -1 || glyphSuffix(icon) !== '') {
-        if (choice && choice.color && icon instanceof HTMLElement) {
-            icon.style.color = choice.color;
+    if (choice && (choice.kind === 'lucide' || choice.kind === 'emoji') && choice.value) {
+        const color = choice.color || '';
+        if (iconDrawn(icon, choice.kind, choice.value, color)) {
+            return;
         }
+        icon.className = 'iconpicker-mark';
+        icon.innerHTML = '';
+        if (icon instanceof HTMLElement) {
+            icon.style.color = '';
+        }
+        const mark = renderIcon(choice.kind, choice.value, color);
+        icon.appendChild(mark);
+        const drawn = choice.kind === 'emoji'
+            || (mark instanceof Element && mark.classList.contains('iconpicker-svg'));
+        if (drawn) {
+            rememberIcon(icon, choice.kind, choice.value, color);
+        }
+        return;
+    }
+    if (choice && choice.kind === 'glyph' && choice.value) {
+        const color = choice.color || '';
+        if (iconDrawn(icon, 'glyph', choice.value, color)) {
+            return;
+        }
+        icon.className = 'glyphicon glyphicon-' + choice.value;
+        icon.innerHTML = '';
+        if (icon instanceof HTMLElement) {
+            icon.style.color = color;
+        }
+        rememberIcon(icon, 'glyph', choice.value, color);
         return;
     }
     if (!choice) {
+        if (icon.classList.contains('iconpicker-mark')) {
+            icon.className = 'glyphicon glyphicon-';
+            icon.innerHTML = '';
+            icon.removeAttribute('data-iconpicker-sig');
+            if (icon instanceof HTMLElement) {
+                icon.style.color = '';
+            }
+        }
         return;
     }
-    icon.className = 'iconpicker-mark';
-    icon.innerHTML = '';
-    icon.appendChild(renderIcon(choice.kind, choice.value, choice.color || ''));
-}
-
-function glyphSuffix(icon: Element): string {
-    const parts = icon.className.split(/\s+/);
-    for (let i = 0; i < parts.length; i++) {
-        const name = parts[i];
-        if (name.indexOf('glyphicon-') === 0 && name.length > 'glyphicon-'.length) {
-            return name.substring('glyphicon-'.length);
-        }
-    }
-    return '';
 }
 
 function watchFolders(): void {
@@ -694,13 +781,19 @@ function themeOf(item: IconItem): string {
     return 'other';
 }
 
+function label(id: string, fallback: string): string {
+    const labels = boot && boot.labels;
+    const value = labels ? labels[id] : '';
+    return value || fallback;
+}
+
 function themeLabel(id: string): string {
     for (let i = 0; i < THEMES.length; i++) {
         if (THEMES[i].id === id) {
-            return THEMES[i].label;
+            return label(id, THEMES[i].label);
         }
     }
-    return 'Sonstiges';
+    return label('other', 'Other');
 }
 
 function sortByTheme(list: IconItem[]): IconItem[] {
