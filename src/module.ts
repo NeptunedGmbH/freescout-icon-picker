@@ -73,6 +73,9 @@ function iconpickerStart(config: IconBoot): void {
             closePanels(null);
         }
     }, true);
+    document.addEventListener('nestedtags:folder-icons', function (event) {
+        applyFolderIcons((event as CustomEvent).detail);
+    });
     installNewFolderHook();
     installFormHook();
     ensureCatalogs(function () {
@@ -134,6 +137,32 @@ function bindSave(): void {
             });
         };
     });
+}
+
+function applyFolderIcons(detail: unknown): void {
+    if (!boot) {
+        return;
+    }
+    const next: Record<string, IconRow> = {};
+    if (detail && typeof detail === 'object') {
+        const rows = detail as Record<string, IconRow>;
+        for (const id in rows) {
+            if (!Object.prototype.hasOwnProperty.call(rows, id)) {
+                continue;
+            }
+            const row = rows[id];
+            if (!row || !row.kind) {
+                continue;
+            }
+            next[id] = {
+                kind: row.kind,
+                value: row.value || '',
+                color: row.color || ''
+            };
+        }
+    }
+    boot.icons = next;
+    paintFolders();
 }
 
 function rememberBoot(id: string, kind: string, value: string, color: string): void {

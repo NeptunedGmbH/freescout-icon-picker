@@ -156,6 +156,17 @@
     vertical-align: middle;
 }
 
+.sidebar-menu .iconpicker-mark {
+    position: absolute;
+    left: 20px;
+    top: 10px;
+    width: 16px;
+    height: 16px;
+    margin-right: 0;
+    font-size: 16px;
+    line-height: 16px;
+}
+
 body.dm .iconpicker-panel {
     border-color: #444;
     background: #2b2b2b;

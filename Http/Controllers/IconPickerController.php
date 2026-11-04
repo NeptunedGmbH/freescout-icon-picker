@@ -34,6 +34,16 @@ class IconPickerController extends Controller
             ));
         }
 
+        if ($mailboxId < 1 && $folderId > 0) {
+            $folder = \App\Folder::find($folderId);
+            if ($folder) {
+                $mailboxId = (int) $folder->mailbox_id;
+            }
+        }
+        if ($mailboxId > 0 && class_exists(\Modules\NestedTags\Events\FolderSidebarRefresh::class)) {
+            \Modules\NestedTags\Events\FolderSidebarRefresh::send($mailboxId);
+        }
+
         return \Response::json(array(
             'status' => 'success',
         ));

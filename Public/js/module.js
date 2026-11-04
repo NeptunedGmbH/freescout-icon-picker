@@ -45,6 +45,9 @@
                 closePanels(null);
             }
         }, true);
+        document.addEventListener('nestedtags:folder-icons', function (event) {
+            applyFolderIcons(event.detail);
+        });
         installNewFolderHook();
         installFormHook();
         ensureCatalogs(function () {
@@ -105,6 +108,31 @@
                 });
             };
         });
+    }
+    function applyFolderIcons(detail) {
+        if (!boot) {
+            return;
+        }
+        var next = {};
+        if (detail && typeof detail === 'object') {
+            var rows = detail;
+            for (var id in rows) {
+                if (!Object.prototype.hasOwnProperty.call(rows, id)) {
+                    continue;
+                }
+                var row = rows[id];
+                if (!row || !row.kind) {
+                    continue;
+                }
+                next[id] = {
+                    kind: row.kind,
+                    value: row.value || '',
+                    color: row.color || ''
+                };
+            }
+        }
+        boot.icons = next;
+        paintFolders();
     }
     function rememberBoot(id, kind, value, color) {
         if (!boot) {
